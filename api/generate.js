@@ -1,4 +1,3 @@
-// api/generate.js
 import { Redis } from "@upstash/redis";
 import crypto from "crypto";
 
@@ -19,19 +18,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Choti aur unique API Key banao (e.g. veh_8f4a2b9c)
+    // 1. Choti API Key (e.g. veh_8f4a2b9c)
     const shortKey = "veh_" + crypto.randomBytes(4).toString("hex");
-
-    // 2. Expiry calculate karo (seconds me)
     const seconds = parseInt(days) * 24 * 60 * 60;
     const expiryMs = Date.now() + (seconds * 1000);
     const expiryDate = new Date(expiryMs).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 
-    // 3. Redis me save karo (Key -> URL, Expiry)
-    // Redis automatically is key ko diye gaye seconds ke baad delete kar dega!
+    // 2. Redis me save karo (Auto expire)
     await redis.setex(shortKey, seconds, JSON.stringify({ url: apiUrl, exp: expiryMs }));
 
-    // 4. Nayi choti URL banao
+    // 3. Nayi URL
     const protocol = req.headers["x-forwarded-proto"] || "http";
     const host = req.headers.host;
     const finalUrl = `${protocol}://${host}/api/proxy?key=${shortKey}`;
@@ -40,8 +36,7 @@ export default async function handler(req, res) {
       success: true, 
       url: finalUrl, 
       key: shortKey,
-      expiry: expiryDate,
-      days: days
+      expiry: expiryDate
     });
 
   } catch (err) {
