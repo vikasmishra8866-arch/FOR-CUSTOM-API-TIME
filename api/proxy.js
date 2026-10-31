@@ -1,56 +1,46 @@
 // api/proxy.js
-import crypto from "crypto";
+import { Redis } from "@upstash/redis";
 
-// ⚠️ Ye secret key Vercel ke Environment Variables me add karni hai
-const SECRET = process.env.PROXY_SECRET || "my-super-secret-key-2026";
+const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
-  // CORS setup
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   if (req.method === "OPTIONS") return res.status(204).end();
 
-  const { token } = req.query;
-  if (!token) {
-    return res.status(400).json({ success: false, error: "Token missing" });
+  const { key } = req.query;
+  if (!key) {
+    return res.status(400).json({ success: false, error: "API Key missing" });
   }
 
   try {
-    // 1. Token ko todho (Payload aur Signature)
-    const [base64Payload, signature] = token.split(".");
-    if (!base64Payload || !signature) throw new Error("Invalid token format");
+    // 1. Redis se key check karo
+    const dataStr = await redis.get(key);
 
-    // 2. Signature verify karo (Security check - taaki koi token change na kar sake)
-    const expectedSignature = crypto
-      .createHmac("sha256", SECRET)
-      .update(base64Payload)
-      .digest("base64url");
-
-    if (signature !== expectedSignature) {
-      throw new Error("Invalid token (Tampered)");
-    }
-
-    // 3. Payload decode karo
-    const payloadStr = Buffer.from(base64Payload, "base64url").toString();
-    const { url, exp } = JSON.parse(payloadStr);
-
-    // 4. Expiry check karo
-    if (Date.now() > exp) {
-      const expDate = new Date(exp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    // 2. Agar data nahi mila -> matlab key galat hai ya expire ho gayi
+    if (!dataStr) {
       return res.status(403).json({ 
         success: false, 
-        error: "URL_EXPIRED", 
-        message: `This link expired on ${expDate}` 
+        error: "KEY_EXPIRED_OR_INVALID", 
+        message: "This API key is invalid or has expired." 
       });
     }
 
-    // 5. Agar sab sahi hai, to original API ko call karke data laao
+    // 3. Data decode karo
+    const { url, exp } = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
+
+    // Double check expiry
+    if (Date.now() > exp) {
+      return res.status(403).json({ success: false, error: "KEY_EXPIRED" });
+    }
+
+    // 4. Original API ko call karo
     const response = await fetch(url);
     const data = await response.json();
 
     return res.status(200).json(data);
 
   } catch (err) {
-    return res.status(403).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: "Server Error" });
   }
 }
