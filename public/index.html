@@ -8,13 +8,14 @@
     <style> body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; } </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
+
     <div class="bg-slate-800 w-full max-w-lg p-8 rounded-2xl shadow-2xl border border-slate-700">
         <h1 class="text-2xl font-bold text-center mb-6 text-blue-400">API Time Manager</h1>
 
         <div class="space-y-4">
             <div>
-                <label class="block text-sm text-slate-300 mb-1">Apna Main API URL Dalein</label>
-                <input type="text" id="apiUrl" value="https://vehicle-api-coral.vercel.app/api/vehicle?number=GJ05MS9717" 
+                <label class="block text-sm text-slate-300 mb-1">Apna Main API Base URL Dalein (Bina ?number= ke)</label>
+                <input type="text" id="apiUrl" value="https://custom-api-times.vercel.app/api/vehicle" 
                     class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
             </div>
 
@@ -36,11 +37,20 @@
                 <input type="text" id="finalUrl" readonly class="w-full bg-slate-800 p-2 text-green-300 rounded border border-slate-700 text-sm">
                 <button onclick="navigator.clipboard.writeText(document.getElementById('finalUrl').value); alert('Copied!')" class="bg-slate-700 px-4 rounded hover:bg-slate-600">Copy</button>
             </div>
+            <p class="text-xs text-yellow-400 mt-2">* Customer is URL ke aakhir me GJ05MS9717 ki jagah apna number dalega.</p>
         </div>
         <p id="error" class="mt-4 text-red-400 text-center text-sm hidden"></p>
     </div>
 
     <script>
+        // 🔥 1. PANEL PASSWORD PROTECTION
+        const PANEL_PASSWORD = "EliteAdmin@2026"; // <-- Yahan apna password set karo
+        const enteredPass = prompt("Enter Admin Password:");
+        if (enteredPass !== PANEL_PASSWORD) {
+            document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%; font-family:sans-serif;'>⛔ Access Denied!</h1>";
+            throw new Error("Unauthorized");
+        }
+
         async function generate() {
             const apiUrl = document.getElementById("apiUrl").value;
             const days = document.getElementById("days").value;
@@ -52,7 +62,10 @@
             try {
                 const res = await fetch("/api/generate", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "x-panel-secret": "EliteAdmin@2026" // 🔥 2. SECRET HEADER (Postman block)
+                    },
                     body: JSON.stringify({ apiUrl, days })
                 });
                 const data = await res.json();
