@@ -1,3 +1,4 @@
+// api/generate.js
 import { Redis } from "@upstash/redis";
 import crypto from "crypto";
 
@@ -18,19 +19,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Choti API Key (e.g. veh_8f4a2b9c)
+    // Yahan hum URL se ?number=... hata denge taaki base URL save ho
+    // Example: https://vehicle-api-coral.vercel.app/api/vehicle
+    const baseApiUrl = apiUrl.split('?')[0]; 
+
     const shortKey = "veh_" + crypto.randomBytes(4).toString("hex");
     const seconds = parseInt(days) * 24 * 60 * 60;
     const expiryMs = Date.now() + (seconds * 1000);
     const expiryDate = new Date(expiryMs).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 
-    // 2. Redis me save karo (Auto expire)
-    await redis.setex(shortKey, seconds, JSON.stringify({ url: apiUrl, exp: expiryMs }));
+    await redis.setex(shortKey, seconds, JSON.stringify({ url: baseApiUrl, exp: expiryMs }));
 
-    // 3. Nayi URL
     const protocol = req.headers["x-forwarded-proto"] || "http";
     const host = req.headers.host;
-    const finalUrl = `${protocol}://${host}/api/proxy?key=${shortKey}`;
+    // Final URL me hum customer ke liye &number= bhi jod denge
+    const finalUrl = `${protocol}://${host}/api/proxy?key=${shortKey}&number=GJ05MS9717`;
 
     return res.status(200).json({ 
       success: true, 
