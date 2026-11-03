@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style> 
         body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; } 
-        /* Custom Scrollbar for keys list */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
@@ -16,7 +15,6 @@
 </head>
 <body class="min-h-screen p-4 md:p-8">
     <div class="max-w-4xl mx-auto">
-        <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
                 Elite API Manager Pro
@@ -24,7 +22,6 @@
             <p class="text-slate-400">Generate and manage secure, time-limited API keys</p>
         </div>
         
-        <!-- Tabs -->
         <div class="flex justify-center mb-6 space-x-4">
             <button onclick="showTab('generate')" id="tab-gen" class="px-6 py-2.5 bg-blue-600 rounded-lg font-bold transition hover:bg-blue-700 shadow-lg shadow-blue-500/30">
                 Generate Key 🚀
@@ -34,7 +31,6 @@
             </button>
         </div>
 
-        <!-- Generate Section -->
         <div id="generate-section" class="bg-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-700">
             <div class="space-y-5">
                 <div>
@@ -74,7 +70,6 @@
                 </button>
             </div>
             
-            <!-- Result Box -->
             <div id="resultBox" class="mt-6 p-5 bg-slate-900 border border-green-500/50 rounded-xl hidden relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
                 <p class="text-green-400 text-sm font-bold mb-2 flex items-center">
@@ -96,7 +91,6 @@
             <p id="errorMsg" class="mt-4 text-red-400 text-center text-sm font-medium hidden"></p>
         </div>
 
-        <!-- List Section -->
         <div id="list-section" class="bg-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-700 hidden">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold text-white">Active Keys</h2>
@@ -105,29 +99,19 @@
                     Refresh
                 </button>
             </div>
-            <div id="keys-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                <!-- Keys will be loaded here -->
-            </div>
+            <div id="keys-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
         </div>
     </div>
 
     <script>
-        // 🔥 1. PANEL PASSWORD PROTECTION
-        const PANEL_PASSWORD = "EliteAdmin@2026"; // <-- Yahan apna password set karo
+        const PANEL_PASSWORD = "EliteAdmin@2026"; 
         const enteredPass = prompt("Enter Admin Password:");
         
         if (enteredPass !== PANEL_PASSWORD) {
-            document.body.innerHTML = `
-                <div class="min-h-screen flex items-center justify-center bg-slate-900">
-                    <div class="text-center">
-                        <h1 class="text-4xl font-bold text-red-500 mb-2">Access Denied</h1>
-                        <p class="text-slate-400">You do not have permission to view this page.</p>
-                    </div>
-                </div>`;
+            document.body.innerHTML = `<div class="min-h-screen flex items-center justify-center bg-slate-900"><div class="text-center"><h1 class="text-4xl font-bold text-red-500 mb-2">Access Denied</h1></div></div>`;
             throw new Error("Unauthorized");
         }
 
-        // Tab Switching Logic
         function showTab(tab) {
             const genSec = document.getElementById('generate-section');
             const listSec = document.getElementById('list-section');
@@ -144,11 +128,10 @@
                 listSec.classList.remove('hidden');
                 tabList.className = 'px-6 py-2.5 bg-blue-600 rounded-lg font-bold transition hover:bg-blue-700 shadow-lg shadow-blue-500/30';
                 tabGen.className = 'px-6 py-2.5 bg-slate-700 rounded-lg font-bold transition hover:bg-slate-600';
-                loadKeys(); // Load keys when tab is opened
+                loadKeys(); 
             }
         }
 
-        // Generate Key Function
         async function generateKey() {
             const apiUrl = document.getElementById("apiUrl").value;
             const duration = document.getElementById("duration").value;
@@ -168,10 +151,7 @@
             try {
                 const res = await fetch("/api/generate", {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json", 
-                        "x-panel-secret": PANEL_PASSWORD 
-                    },
+                    headers: { "Content-Type": "application/json", "x-panel-secret": PANEL_PASSWORD },
                     body: JSON.stringify({ apiUrl, duration, unit, note })
                 });
                 
@@ -181,7 +161,7 @@
                     document.getElementById("finalUrl").value = data.url;
                     document.getElementById("expiryText").innerText = `Valid till: ${data.expiry}`;
                     resultBox.classList.remove("hidden");
-                    document.getElementById("note").value = ""; // Clear note
+                    document.getElementById("note").value = ""; 
                 } else {
                     throw new Error(data.error || "Failed to generate");
                 }
@@ -194,27 +174,20 @@
             }
         }
 
-        // Load Keys Function
         async function loadKeys() {
             const container = document.getElementById('keys-list');
             container.innerHTML = '<p class="text-center text-slate-400 animate-pulse">Loading keys...</p>';
 
             try {
-                const res = await fetch("/api/keys", { 
-                    headers: { "x-panel-secret": PANEL_PASSWORD } 
-                });
+                const res = await fetch("/api/keys", { headers: { "x-panel-secret": PANEL_PASSWORD } });
                 const data = await res.json();
                 
                 container.innerHTML = '';
                 
                 if (data.keys && data.keys.length > 0) {
-                    // Sort by expiry (newest first)
                     data.keys.sort((a, b) => b.exp - a.exp);
-
                     data.keys.forEach(k => {
                         const date = new Date(k.exp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-                        
-                        // Check if expired (just in case)
                         const isExpired = Date.now() > k.exp;
                         const statusColor = isExpired ? "text-red-400" : "text-green-400";
                         const statusText = isExpired ? "Expired" : "Active";
@@ -230,49 +203,29 @@
                                 <p class="text-sm text-slate-300 mb-1">📝 Note: <span class="text-white">${k.note || 'N/A'}</span></p>
                                 <p class="text-xs text-slate-500">Expires: <span class="${statusColor}">${date}</span></p>
                             </div>
-                            <button onclick="revokeKey('${k.key}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition w-full md:w-auto">
-                                Revoke Key
-                            </button>
+                            <button onclick="revokeKey('${k.key}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition w-full md:w-auto">Revoke Key</button>
                         `;
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = `
-                        <div class="text-center py-10 bg-slate-900 rounded-xl border border-slate-700">
-                            <p class="text-slate-400">No active keys found. Generate one!</p>
-                        </div>`;
+                    container.innerHTML = `<div class="text-center py-10 bg-slate-900 rounded-xl border border-slate-700"><p class="text-slate-400">No active keys found. Generate one!</p></div>`;
                 }
-            } catch (err) {
-                container.innerHTML = '<p class="text-center text-red-400">Failed to load keys. Check connection.</p>';
-            }
+            } catch (err) { container.innerHTML = '<p class="text-center text-red-400">Failed to load keys.</p>'; }
         }
 
-        // Revoke Key Function
         async function revokeKey(key) {
-            if (!confirm("Are you sure you want to permanently revoke this key? The customer will lose access immediately.")) return;
-            
+            if (!confirm("Are you sure you want to permanently revoke this key?")) return;
             try {
                 const res = await fetch("/api/keys", {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json", 
-                        "x-panel-secret": PANEL_PASSWORD 
-                    },
+                    headers: { "Content-Type": "application/json", "x-panel-secret": PANEL_PASSWORD },
                     body: JSON.stringify({ keyToDelete: key })
                 });
                 const data = await res.json();
-                
-                if (data.success) {
-                    loadKeys(); // Refresh list
-                } else {
-                    alert("Error revoking key: " + data.error);
-                }
-            } catch (err) {
-                alert("Server error. Could not revoke key.");
-            }
+                if (data.success) loadKeys(); else alert("Error revoking key: " + data.error);
+            } catch (err) { alert("Server error. Could not revoke key."); }
         }
 
-        // Copy URL Function
         function copyUrl() {
             const copyText = document.getElementById("finalUrl");
             copyText.select();
@@ -282,10 +235,7 @@
                 const originalText = btn.innerText;
                 btn.innerText = "Copied! ✅";
                 btn.classList.add("bg-green-600", "text-white");
-                setTimeout(() => {
-                    btn.innerText = originalText;
-                    btn.classList.remove("bg-green-600", "text-white");
-                }, 2000);
+                setTimeout(() => { btn.innerText = originalText; btn.classList.remove("bg-green-600", "text-white"); }, 2000);
             });
         }
     </script>
