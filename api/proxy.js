@@ -3,10 +3,8 @@ import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
 let redis, ratelimit;
-
 try {
   redis = Redis.fromEnv();
-  // Rate Limit: 1 minute me max 10 requests
   ratelimit = new Ratelimit({
     redis: redis,
     limiter: Ratelimit.slidingWindow(10, "60 s"),
@@ -23,14 +21,14 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
 
   if (!redis) {
-    return res.status(500).json({ success: false, error: "DB_NOT_CONFIGURED", message: "Database not connected. Check Vercel env vars." });
+    return res.status(500).json({ success: false, error: "DB_NOT_CONFIGURED", message: "Database not connected." });
   }
 
   const { key, number } = req.query;
   if (!key) return res.status(400).json({ success: false, error: "API Key missing" });
   if (!number) return res.status(400).json({ success: false, error: "Vehicle number missing" });
 
-  // 1. Rate Limit Check
+  // Rate Limit
   try {
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "127.0.0.1";
     const { success: rlSuccess } = await ratelimit.limit(`proxy_${ip}`);
@@ -39,53 +37,64 @@ export default async function handler(req, res) {
     }
   } catch (rlError) {
     console.error("Rate Limit Error:", rlError);
-    // Rate limit fail ho jaye to bhi API na ruke
   }
 
-  // 2. Redis se Key Check
+  // Redis se Key Check
   try {
     const dataStr = await redis.get(key);
     if (!dataStr) {
       return res.status(403).json({ success: false, error: "KEY_INVALID", message: "Invalid or expired API key." });
     }
 
-    // 🔥 SAFE PARSING: Object ya String dono handle karega
     let parsedData = dataStr;
     if (typeof dataStr === 'string') {
-        try {
-            parsedData = JSON.parse(dataStr);
-        } catch (parseError) {
-            console.error("JSON Parse Error on key:", key, parseError);
-            return res.status(500).json({ success: false, error: "DATA_CORRUPTED", message: "Stored key data is invalid." });
+        try { parsedData = JSON.parse(dataStr); } catch (e) {
+            return res.status(500).json({ success: false, error: "DATA_CORRUPTED" });
         }
     }
 
     const { url, exp } = parsedData;
-    if (!url) return res.status(500).json({ success: false, error: "NO_URL_FOUND", message: "No API URL linked to this key." });
-
+    if (!url) return res.status(500).json({ success: false, error: "NO_URL_FOUND" });
     if (Date.now() > exp) {
       return res.status(403).json({ success: false, error: "KEY_EXPIRED", message: "This API key has expired." });
     }
 
-    // 3. Main API Call
-    const separator = url.includes('?') ? '&' : '?';
-    const finalFetchUrl = `${url}${separator}number=${number}`;
+    // 🔥 FIX: Base URL sahi se banao
+    const protocol = req.headers["x-forwarded-proto"] || "https";
+    const host = req.headers.host;
     
+    // Agar 'url' relative path hai (jaise /api/vehicle), to host add karo
+    let targetUrl;
+    if (url.startsWith('http')) {
+        targetUrl = url;
+    } else {
+        targetUrl = `${protocol}://${host}${url}`;
+    }
+
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    const finalFetchUrl = `${targetUrl}${separator}number=${number}`;
+    
+    console.log("🔍 PROXY FETCHING URL:", finalFetchUrl); // Debug ke liye
+
     const response = await fetch(finalFetchUrl);
+    
+    // 🔥 FIX: Agar 404 aaye to saaf message do, HTML parse mat karo
     if (!response.ok) {
+        if (response.status === 404) {
+            throw new Error(`Upstream API not found at ${finalFetchUrl}. Check if the endpoint exists and deployment protection is off.`);
+        }
         throw new Error(`Upstream responded with status ${response.status}`);
     }
-    const data = await response.json();
 
+    const data = await response.json();
     return res.status(200).json(data);
 
   } catch (err) {
-    // 🔥 Yahan asli error print hoga Vercel Logs me
     console.error("❌ PROXY FATAL ERROR:", err); 
     return res.status(500).json({ 
         success: false, 
         error: "INTERNAL_ERROR", 
-        message: "Something went wrong while processing your request." 
+        message: err.message || "Something went wrong." 
     });
   }
 }
