@@ -3,86 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Panel</title>
+    <title>API Manager Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style> body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; } </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-
-    <div class="bg-slate-800 w-full max-w-lg p-8 rounded-2xl shadow-2xl border border-slate-700">
-        <h1 class="text-2xl font-bold text-center mb-6 text-blue-400">API Time Manager</h1>
-
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm text-slate-300 mb-1">Apna Main API Base URL Dalein (Bina ?number= ke)</label>
-                <input type="text" id="apiUrl" value="https://custom-api-times.vercel.app/api/vehicle" 
-                    class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
-            </div>
-
-            <div>
-                <label class="block text-sm text-slate-300 mb-1">Time (Days)</label>
-                <input type="number" id="days" value="30" min="1"
-                    class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
-            </div>
-
-            <button onclick="generate()" id="btn" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition">
-                Generate Short URL 🚀
-            </button>
+<body class="min-h-screen p-4">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8 text-blue-400">API Manager Pro</h1>
+        
+        <!-- Tabs -->
+        <div class="flex justify-center mb-6 space-x-4">
+            <button onclick="showTab('generate')" id="tab-gen" class="px-4 py-2 bg-blue-600 rounded-lg font-bold">Generate Key</button>
+            <button onclick="showTab('list')" id="tab-list" class="px-4 py-2 bg-slate-700 rounded-lg font-bold">Active Keys</button>
         </div>
 
-        <div id="result" class="mt-6 p-4 bg-slate-900 border border-green-500/50 rounded-lg hidden">
-            <p class="text-green-400 text-sm font-bold mb-2">✅ Success!</p>
-            <p class="text-xs text-slate-400 mb-2" id="expiryText"></p>
-            <div class="flex gap-2">
-                <input type="text" id="finalUrl" readonly class="w-full bg-slate-800 p-2 text-green-300 rounded border border-slate-700 text-sm">
-                <button onclick="navigator.clipboard.writeText(document.getElementById('finalUrl').value); alert('Copied!')" class="bg-slate-700 px-4 rounded hover:bg-slate-600">Copy</button>
+        <!-- Generate Section -->
+        <div id="generate-section" class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">Base API URL</label>
+                    <input type="text" id="apiUrl" value="https://custom-api-times.vercel.app/api/vehicle" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-sm text-slate-300 mb-1">Duration</label>
+                        <input type="number" id="duration" value="30" min="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm text-slate-300 mb-1">Unit</label>
+                        <select id="unit" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                            <option value="days">Days</option>
+                            <option value="minutes">Minutes</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">Note (Kisko diya / Kis kaam ke liye)</label>
+                    <input type="text" id="note" placeholder="e.g. Rahul - Office use" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                </div>
+                <button onclick="generateKey()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold">Generate Key 🚀</button>
             </div>
-            <p class="text-xs text-yellow-400 mt-2">* Customer is URL ke aakhir me GJ05MS9717 ki jagah apna number dalega.</p>
+            
+            <div id="resultBox" class="mt-6 p-4 bg-slate-900 border border-green-500/50 rounded-lg hidden">
+                <p class="text-green-400 font-bold mb-2">✅ Key Generated!</p>
+                <input type="text" id="finalUrl" readonly class="w-full bg-slate-800 p-2 text-green-300 rounded border border-slate-700 text-sm mb-2">
+                <button onclick="copyUrl()" class="bg-slate-700 px-4 py-2 rounded text-sm">Copy URL</button>
+            </div>
         </div>
-        <p id="error" class="mt-4 text-red-400 text-center text-sm hidden"></p>
+
+        <!-- List Section -->
+        <div id="list-section" class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 hidden">
+            <h2 class="text-xl font-bold mb-4">Active Keys</h2>
+            <div id="keys-list" class="space-y-2"></div>
+        </div>
     </div>
 
     <script>
-        // 🔥 1. PANEL PASSWORD PROTECTION
-        const PANEL_PASSWORD = "EliteAdmin@2026"; // <-- Yahan apna password set karo
+        const PANEL_PASSWORD = "EliteAdmin@2026";
         const enteredPass = prompt("Enter Admin Password:");
         if (enteredPass !== PANEL_PASSWORD) {
-            document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%; font-family:sans-serif;'>⛔ Access Denied!</h1>";
+            document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%;'>Access Denied</h1>";
             throw new Error("Unauthorized");
         }
 
-        async function generate() {
-            const apiUrl = document.getElementById("apiUrl").value;
-            const days = document.getElementById("days").value;
-            
-            document.getElementById("btn").innerText = "Generating...";
-            document.getElementById("result").classList.add("hidden");
-            document.getElementById("error").classList.add("hidden");
+        function showTab(tab) {
+            document.getElementById('generate-section').classList.toggle('hidden', tab !== 'generate');
+            document.getElementById('list-section').classList.toggle('hidden', tab !== 'list');
+            document.getElementById('tab-gen').className = tab === 'generate' ? 'px-4 py-2 bg-blue-600 rounded-lg font-bold' : 'px-4 py-2 bg-slate-700 rounded-lg font-bold';
+            document.getElementById('tab-list').className = tab === 'list' ? 'px-4 py-2 bg-blue-600 rounded-lg font-bold' : 'px-4 py-2 bg-slate-700 rounded-lg font-bold';
+            if (tab === 'list') loadKeys();
+        }
 
-            try {
-                const res = await fetch("/api/generate", {
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "x-panel-secret": "EliteAdmin@2026" // 🔥 2. SECRET HEADER (Postman block)
-                    },
-                    body: JSON.stringify({ apiUrl, days })
-                });
-                const data = await res.json();
-                
-                if (data.success) {
-                    document.getElementById("finalUrl").value = data.url;
-                    document.getElementById("expiryText").innerText = "Valid till: " + data.expiry;
-                    document.getElementById("result").classList.remove("hidden");
-                } else {
-                    throw new Error(data.error);
-                }
-            } catch (err) {
-                document.getElementById("error").innerText = "❌ " + err.message;
-                document.getElementById("error").classList.remove("hidden");
-            } finally {
-                document.getElementById("btn").innerText = "Generate Short URL 🚀";
+        async function generateKey() {
+            const apiUrl = document.getElementById("apiUrl").value;
+            const duration = document.getElementById("duration").value;
+            const unit = document.getElementById("unit").value;
+            const note = document.getElementById("note").value;
+            
+            const res = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-panel-secret": PANEL_PASSWORD },
+                body: JSON.stringify({ apiUrl, duration, unit, note })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById("finalUrl").value = data.url;
+                document.getElementById("resultBox").classList.remove("hidden");
+            } else {
+                alert("Error: " + data.error);
             }
+        }
+
+        async function loadKeys() {
+            const res = await fetch("/api/keys", { headers: { "x-panel-secret": PANEL_PASSWORD } });
+            const data = await res.json();
+            const container = document.getElementById('keys-list');
+            container.innerHTML = '';
+            if (data.keys && data.keys.length > 0) {
+                data.keys.forEach(k => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700';
+                    div.innerHTML = `
+                        <div>
+                            <p class="text-sm font-bold text-blue-300">${k.key}</p>
+                            <p class="text-xs text-slate-400">Note: ${k.note || 'N/A'}</p>
+                            <p class="text-xs text-red-400">Expires: ${new Date(k.exp).toLocaleString()}</p>
+                        </div>
+                        <button onclick="revokeKey('${k.key}')" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm">Revoke</button>
+                    `;
+                    container.appendChild(div);
+                });
+            } else {
+                container.innerHTML = '<p class="text-slate-400">No active keys found.</p>';
+            }
+        }
+
+        async function revokeKey(key) {
+            if (!confirm("Are you sure you want to revoke this key?")) return;
+            const res = await fetch("/api/keys", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-panel-secret": PANEL_PASSWORD },
+                body: JSON.stringify({ keyToDelete: key })
+            });
+            const data = await res.json();
+            if (data.success) {
+                loadKeys(); // Refresh list
+            } else {
+                alert("Error revoking key");
+            }
+        }
+
+        function copyUrl() {
+            const copyText = document.getElementById("finalUrl");
+            copyText.select();
+            navigator.clipboard.writeText(copyText.value);
+            alert("Copied!");
         }
     </script>
 </body>
