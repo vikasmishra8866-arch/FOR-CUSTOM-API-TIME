@@ -3,11 +3,7 @@ import { Redis } from "@upstash/redis";
 import crypto from "crypto";
 
 let redis;
-try {
-  redis = Redis.fromEnv();
-} catch (e) {
-  console.error("Redis Init Error:", e);
-}
+try { redis = Redis.fromEnv(); } catch (e) { console.error("Redis Init Error:", e); }
 
 const PANEL_PASSWORD = "EliteAdmin@2026";
 
@@ -20,16 +16,10 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   if (!redis) return res.status(500).json({ error: "Database not configured" });
+  if (req.headers["x-panel-secret"] !== PANEL_PASSWORD) return res.status(401).json({ error: "Unauthorized" });
 
-  if (req.headers["x-panel-secret"] !== PANEL_PASSWORD) {
-    return res.status(401).json({ error: "Unauthorized access." });
-  }
-
-  // 🔥 SAFE BODY PARSING
   let body = req.body;
-  if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch(e) {}
-  }
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch(e) {} }
   
   const { apiUrl, duration, unit, note } = body || {};
 
@@ -38,29 +28,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    const baseApiUrl = apiUrl.split('?')[0]; 
+    // 🔥 FIX: URL ko properly parse karo, taaki query params hat sake
+    const parsedUrl = new URL(apiUrl);
+    const baseApiUrl = parsedUrl.origin + parsedUrl.pathname; // Sirf base URL, no query
+
     const shortKey = "veh_" + crypto.randomBytes(4).toString("hex");
     
-    let seconds = 0;
-    if (unit === 'minutes') {
-        seconds = parseInt(duration) * 60;
-    } else {
-        seconds = parseInt(duration) * 24 * 60 * 60;
-    }
-    
+    let seconds = unit === 'minutes' ? parseInt(duration) * 60 : parseInt(duration) * 24 * 60 * 60;
     const expiryMs = Date.now() + (seconds * 1000);
     const expiryDate = new Date(expiryMs).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 
     const payload = { url: baseApiUrl, exp: expiryMs, note: note || "No note provided" };
     await redis.setex(shortKey, seconds, JSON.stringify(payload));
 
-    const protocol = req.headers["x-forwarded-proto"] || "http";
+    const protocol = req.headers["x-forwarded-proto"] || "https";
     const host = req.headers.host;
     const finalUrl = `${protocol}://${host}/api/proxy?key=${shortKey}&number=GJ05MS9717`;
 
     return res.status(200).json({ success: true, url: finalUrl, key: shortKey, expiry: expiryDate, note });
   } catch (err) {
     console.error("Generate Error:", err);
-    return res.status(500).json({ error: "Failed to generate URL" });
+    return res.status(500).json({ error: "Failed to generate URL. Check if API URL is valid." });
   }
 }
