@@ -20,65 +20,46 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   if (req.method === "OPTIONS") return res.status(204).end();
 
-  if (!redis) {
-    return res.status(500).json({ success: false, error: "DB_NOT_CONFIGURED", message: "Database not connected." });
-  }
+  if (!redis) return res.status(500).json({ success: false, error: "DB_NOT_CONFIGURED" });
 
   const { key, number } = req.query;
   if (!key) return res.status(400).json({ success: false, error: "API Key missing" });
   if (!number) return res.status(400).json({ success: false, error: "Vehicle number missing" });
 
-  // Rate Limit
-  try {
-    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "127.0.0.1";
-    const { success: rlSuccess } = await ratelimit.limit(`proxy_${ip}`);
-    if (!rlSuccess) {
-      return res.status(429).json({ success: false, error: "TOO_MANY_REQUESTS", message: "Too many requests. Please wait a minute." });
-    }
-  } catch (rlError) { console.error("Rate Limit Error:", rlError); }
-
-  // Redis se Key Check
   try {
     const dataStr = await redis.get(key);
-    if (!dataStr) {
-      return res.status(403).json({ success: false, error: "KEY_INVALID", message: "Invalid or expired API key." });
-    }
+    if (!dataStr) return res.status(403).json({ success: false, error: "KEY_INVALID" });
 
     let parsedData = dataStr;
     if (typeof dataStr === 'string') {
-        try { parsedData = JSON.parse(dataStr); } catch (e) {
-            return res.status(500).json({ success: false, error: "DATA_CORRUPTED" });
-        }
+        try { parsedData = JSON.parse(dataStr); } catch (e) { return res.status(500).json({ success: false, error: "DATA_CORRUPTED" }); }
     }
 
     const { url, exp } = parsedData;
     if (!url) return res.status(500).json({ success: false, error: "NO_URL_FOUND" });
-    if (Date.now() > exp) {
-      return res.status(403).json({ success: false, error: "KEY_EXPIRED", message: "This API key has expired." });
-    }
+    if (Date.now() > exp) return res.status(403).json({ success: false, error: "KEY_EXPIRED", message: "This API key has expired." });
 
-    // 🔥 FIX: Target URL ko smartly banao
+    // 🔥 SMART URL RESOLVER
     let targetUrl;
     if (url.startsWith('http')) {
-        targetUrl = url; // Agar generate karte waqt full URL diya tha
+        targetUrl = url; 
     } else {
-        // Agar relative path hai (jaise /api/vehicle), to apna host use karo
         const protocol = req.headers["x-forwarded-proto"] || "https";
         const host = req.headers.host;
-        targetUrl = `${protocol}://${host}${url}`;
+        // Agar URL '/api/vehicle' hai, to ye 'https://api-v2-nu.vercel.app/api/vehicle' bana dega
+        targetUrl = `${protocol}://${host}${url.startsWith('/') ? '' : '/'}${url}`;
     }
 
     const separator = targetUrl.includes('?') ? '&' : '?';
     const finalFetchUrl = `${targetUrl}${separator}number=${number}`;
     
-    console.log("🔍 PROXY FETCHING URL:", finalFetchUrl); // Debug ke liye
+    console.log("🔍 PROXY FETCHING URL:", finalFetchUrl);
 
     const response = await fetch(finalFetchUrl);
     
-    // 🔥 FIX: 404 aane par saaf message do
     if (!response.ok) {
         if (response.status === 404) {
-            throw new Error(`404 Not Found: The API at "${finalFetchUrl}" does not exist. Please check the Base URL in the panel and ensure the vehicle API is deployed.`);
+            throw new Error(`404 Error: The API at "${finalFetchUrl}" does not exist.`);
         }
         throw new Error(`Upstream API error (Status: ${response.status})`);
     }
@@ -88,10 +69,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("❌ PROXY FATAL ERROR:", err); 
-    return res.status(500).json({ 
-        success: false, 
-        error: "INTERNAL_ERROR", 
-        message: err.message || "Something went wrong." 
-    });
+    return res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err.message });
   }
 }
