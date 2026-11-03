@@ -5,139 +5,288 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API Manager Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style> body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; } </style>
+    <style> 
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; } 
+        /* Custom Scrollbar for keys list */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+    </style>
 </head>
-<body class="min-h-screen p-4">
+<body class="min-h-screen p-4 md:p-8">
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl font-bold text-center mb-8 text-blue-400">API Manager Pro</h1>
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
+                Elite API Manager Pro
+            </h1>
+            <p class="text-slate-400">Generate and manage secure, time-limited API keys</p>
+        </div>
         
         <!-- Tabs -->
         <div class="flex justify-center mb-6 space-x-4">
-            <button onclick="showTab('generate')" id="tab-gen" class="px-4 py-2 bg-blue-600 rounded-lg font-bold">Generate Key</button>
-            <button onclick="showTab('list')" id="tab-list" class="px-4 py-2 bg-slate-700 rounded-lg font-bold">Active Keys</button>
+            <button onclick="showTab('generate')" id="tab-gen" class="px-6 py-2.5 bg-blue-600 rounded-lg font-bold transition hover:bg-blue-700 shadow-lg shadow-blue-500/30">
+                Generate Key 🚀
+            </button>
+            <button onclick="showTab('list')" id="tab-list" class="px-6 py-2.5 bg-slate-700 rounded-lg font-bold transition hover:bg-slate-600">
+                Active Keys 📋
+            </button>
         </div>
 
         <!-- Generate Section -->
-        <div id="generate-section" class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
-            <div class="space-y-4">
+        <div id="generate-section" class="bg-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-700">
+            <div class="space-y-5">
                 <div>
-                    <label class="block text-sm text-slate-300 mb-1">Base API URL</label>
-                    <input type="text" id="apiUrl" value="https://custom-api-times.vercel.app/api/vehicle" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
-                </div>
-                <div class="flex gap-4">
-                    <div class="flex-1">
-                        <label class="block text-sm text-slate-300 mb-1">Duration</label>
-                        <input type="number" id="duration" value="30" min="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                    <label class="block text-sm font-medium text-slate-300 mb-2">API Endpoint Path</label>
+                    <div class="flex items-center">
+                        <span class="bg-slate-700 text-slate-300 px-3 py-3 rounded-l-lg border border-r-0 border-slate-600 text-sm">Domain Auto-Detect</span>
+                        <input type="text" id="apiUrl" value="/api/vehicle" 
+                            class="w-full bg-slate-900 border border-slate-600 rounded-r-lg p-3 text-green-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                     </div>
-                    <div class="flex-1">
-                        <label class="block text-sm text-slate-300 mb-1">Unit</label>
-                        <select id="unit" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                    <p class="text-xs text-slate-500 mt-1">* Sirf /api/vehicle rakhna hai, domain apne aap current URL se lag jayega.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Duration</label>
+                        <input type="number" id="duration" value="30" min="1"
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Unit</label>
+                        <select id="unit" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
                             <option value="days">Days</option>
                             <option value="minutes">Minutes</option>
                         </select>
                     </div>
                 </div>
+
                 <div>
-                    <label class="block text-sm text-slate-300 mb-1">Note (Kisko diya / Kis kaam ke liye)</label>
-                    <input type="text" id="note" placeholder="e.g. Rahul - Office use" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white">
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Note (Kisko diya / Kis kaam ke liye)</label>
+                    <input type="text" id="note" placeholder="e.g. Rahul - Client Demo" 
+                        class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
                 </div>
-                <button onclick="generateKey()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold">Generate Key 🚀</button>
+
+                <button onclick="generateKey()" id="genBtn" 
+                    class="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3.5 rounded-lg transition duration-200 shadow-lg shadow-blue-500/30 flex justify-center items-center">
+                    <span id="btnText">Generate Secure Link</span>
+                </button>
             </div>
             
-            <div id="resultBox" class="mt-6 p-4 bg-slate-900 border border-green-500/50 rounded-lg hidden">
-                <p class="text-green-400 font-bold mb-2">✅ Key Generated!</p>
-                <input type="text" id="finalUrl" readonly class="w-full bg-slate-800 p-2 text-green-300 rounded border border-slate-700 text-sm mb-2">
-                <button onclick="copyUrl()" class="bg-slate-700 px-4 py-2 rounded text-sm">Copy URL</button>
+            <!-- Result Box -->
+            <div id="resultBox" class="mt-6 p-5 bg-slate-900 border border-green-500/50 rounded-xl hidden relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                <p class="text-green-400 text-sm font-bold mb-2 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Key Generated Successfully!
+                </p>
+                <p class="text-xs text-slate-400 mb-3" id="expiryText"></p>
+                <div class="flex gap-2">
+                    <input type="text" id="finalUrl" readonly 
+                        class="w-full bg-slate-800 p-3 text-green-300 rounded-lg border border-slate-700 text-sm focus:outline-none">
+                    <button onclick="copyUrl()" class="bg-slate-700 hover:bg-slate-600 px-5 rounded-lg transition text-sm font-medium flex items-center">
+                        Copy
+                    </button>
+                </div>
+                <p class="text-xs text-yellow-400 mt-3 bg-yellow-400/10 p-2 rounded">
+                    💡 Tip: Customer is URL ke aakhir me <b>GJ05MS9717</b> ki jagah apna vehicle number dalega.
+                </p>
             </div>
+            <p id="errorMsg" class="mt-4 text-red-400 text-center text-sm font-medium hidden"></p>
         </div>
 
         <!-- List Section -->
-        <div id="list-section" class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 hidden">
-            <h2 class="text-xl font-bold mb-4">Active Keys</h2>
-            <div id="keys-list" class="space-y-2"></div>
+        <div id="list-section" class="bg-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-700 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-white">Active Keys</h2>
+                <button onclick="loadKeys()" class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Refresh
+                </button>
+            </div>
+            <div id="keys-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                <!-- Keys will be loaded here -->
+            </div>
         </div>
     </div>
 
     <script>
-        const PANEL_PASSWORD = "EliteAdmin@2026";
+        // 🔥 1. PANEL PASSWORD PROTECTION
+        const PANEL_PASSWORD = "EliteAdmin@2026"; // <-- Yahan apna password set karo
         const enteredPass = prompt("Enter Admin Password:");
+        
         if (enteredPass !== PANEL_PASSWORD) {
-            document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%;'>Access Denied</h1>";
+            document.body.innerHTML = `
+                <div class="min-h-screen flex items-center justify-center bg-slate-900">
+                    <div class="text-center">
+                        <h1 class="text-4xl font-bold text-red-500 mb-2">Access Denied</h1>
+                        <p class="text-slate-400">You do not have permission to view this page.</p>
+                    </div>
+                </div>`;
             throw new Error("Unauthorized");
         }
 
+        // Tab Switching Logic
         function showTab(tab) {
-            document.getElementById('generate-section').classList.toggle('hidden', tab !== 'generate');
-            document.getElementById('list-section').classList.toggle('hidden', tab !== 'list');
-            document.getElementById('tab-gen').className = tab === 'generate' ? 'px-4 py-2 bg-blue-600 rounded-lg font-bold' : 'px-4 py-2 bg-slate-700 rounded-lg font-bold';
-            document.getElementById('tab-list').className = tab === 'list' ? 'px-4 py-2 bg-blue-600 rounded-lg font-bold' : 'px-4 py-2 bg-slate-700 rounded-lg font-bold';
-            if (tab === 'list') loadKeys();
+            const genSec = document.getElementById('generate-section');
+            const listSec = document.getElementById('list-section');
+            const tabGen = document.getElementById('tab-gen');
+            const tabList = document.getElementById('tab-list');
+
+            if (tab === 'generate') {
+                genSec.classList.remove('hidden');
+                listSec.classList.add('hidden');
+                tabGen.className = 'px-6 py-2.5 bg-blue-600 rounded-lg font-bold transition hover:bg-blue-700 shadow-lg shadow-blue-500/30';
+                tabList.className = 'px-6 py-2.5 bg-slate-700 rounded-lg font-bold transition hover:bg-slate-600';
+            } else {
+                genSec.classList.add('hidden');
+                listSec.classList.remove('hidden');
+                tabList.className = 'px-6 py-2.5 bg-blue-600 rounded-lg font-bold transition hover:bg-blue-700 shadow-lg shadow-blue-500/30';
+                tabGen.className = 'px-6 py-2.5 bg-slate-700 rounded-lg font-bold transition hover:bg-slate-600';
+                loadKeys(); // Load keys when tab is opened
+            }
         }
 
+        // Generate Key Function
         async function generateKey() {
             const apiUrl = document.getElementById("apiUrl").value;
             const duration = document.getElementById("duration").value;
             const unit = document.getElementById("unit").value;
             const note = document.getElementById("note").value;
             
-            const res = await fetch("/api/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "x-panel-secret": PANEL_PASSWORD },
-                body: JSON.stringify({ apiUrl, duration, unit, note })
-            });
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById("finalUrl").value = data.url;
-                document.getElementById("resultBox").classList.remove("hidden");
-            } else {
-                alert("Error: " + data.error);
-            }
-        }
+            const btn = document.getElementById("genBtn");
+            const btnText = document.getElementById("btnText");
+            const resultBox = document.getElementById("resultBox");
+            const errorMsg = document.getElementById("errorMsg");
 
-        async function loadKeys() {
-            const res = await fetch("/api/keys", { headers: { "x-panel-secret": PANEL_PASSWORD } });
-            const data = await res.json();
-            const container = document.getElementById('keys-list');
-            container.innerHTML = '';
-            if (data.keys && data.keys.length > 0) {
-                data.keys.forEach(k => {
-                    const div = document.createElement('div');
-                    div.className = 'flex justify-between items-center bg-slate-900 p-3 rounded border border-slate-700';
-                    div.innerHTML = `
-                        <div>
-                            <p class="text-sm font-bold text-blue-300">${k.key}</p>
-                            <p class="text-xs text-slate-400">Note: ${k.note || 'N/A'}</p>
-                            <p class="text-xs text-red-400">Expires: ${new Date(k.exp).toLocaleString()}</p>
-                        </div>
-                        <button onclick="revokeKey('${k.key}')" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm">Revoke</button>
-                    `;
-                    container.appendChild(div);
+            btn.disabled = true;
+            btnText.innerText = "Generating...";
+            resultBox.classList.add("hidden");
+            errorMsg.classList.add("hidden");
+
+            try {
+                const res = await fetch("/api/generate", {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json", 
+                        "x-panel-secret": PANEL_PASSWORD 
+                    },
+                    body: JSON.stringify({ apiUrl, duration, unit, note })
                 });
-            } else {
-                container.innerHTML = '<p class="text-slate-400">No active keys found.</p>';
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById("finalUrl").value = data.url;
+                    document.getElementById("expiryText").innerText = `Valid till: ${data.expiry}`;
+                    resultBox.classList.remove("hidden");
+                    document.getElementById("note").value = ""; // Clear note
+                } else {
+                    throw new Error(data.error || "Failed to generate");
+                }
+            } catch (err) {
+                errorMsg.innerText = "❌ " + err.message;
+                errorMsg.classList.remove("hidden");
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = "Generate Secure Link";
             }
         }
 
+        // Load Keys Function
+        async function loadKeys() {
+            const container = document.getElementById('keys-list');
+            container.innerHTML = '<p class="text-center text-slate-400 animate-pulse">Loading keys...</p>';
+
+            try {
+                const res = await fetch("/api/keys", { 
+                    headers: { "x-panel-secret": PANEL_PASSWORD } 
+                });
+                const data = await res.json();
+                
+                container.innerHTML = '';
+                
+                if (data.keys && data.keys.length > 0) {
+                    // Sort by expiry (newest first)
+                    data.keys.sort((a, b) => b.exp - a.exp);
+
+                    data.keys.forEach(k => {
+                        const date = new Date(k.exp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+                        
+                        // Check if expired (just in case)
+                        const isExpired = Date.now() > k.exp;
+                        const statusColor = isExpired ? "text-red-400" : "text-green-400";
+                        const statusText = isExpired ? "Expired" : "Active";
+
+                        const div = document.createElement('div');
+                        div.className = 'flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 p-4 rounded-xl border border-slate-700 gap-4';
+                        div.innerHTML = `
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-1">
+                                    <p class="text-sm font-bold text-blue-300 font-mono">${k.key}</p>
+                                    <span class="text-xs px-2 py-0.5 rounded bg-slate-800 ${statusColor} border border-slate-700">${statusText}</span>
+                                </div>
+                                <p class="text-sm text-slate-300 mb-1">📝 Note: <span class="text-white">${k.note || 'N/A'}</span></p>
+                                <p class="text-xs text-slate-500">Expires: <span class="${statusColor}">${date}</span></p>
+                            </div>
+                            <button onclick="revokeKey('${k.key}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition w-full md:w-auto">
+                                Revoke Key
+                            </button>
+                        `;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-10 bg-slate-900 rounded-xl border border-slate-700">
+                            <p class="text-slate-400">No active keys found. Generate one!</p>
+                        </div>`;
+                }
+            } catch (err) {
+                container.innerHTML = '<p class="text-center text-red-400">Failed to load keys. Check connection.</p>';
+            }
+        }
+
+        // Revoke Key Function
         async function revokeKey(key) {
-            if (!confirm("Are you sure you want to revoke this key?")) return;
-            const res = await fetch("/api/keys", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "x-panel-secret": PANEL_PASSWORD },
-                body: JSON.stringify({ keyToDelete: key })
-            });
-            const data = await res.json();
-            if (data.success) {
-                loadKeys(); // Refresh list
-            } else {
-                alert("Error revoking key");
+            if (!confirm("Are you sure you want to permanently revoke this key? The customer will lose access immediately.")) return;
+            
+            try {
+                const res = await fetch("/api/keys", {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json", 
+                        "x-panel-secret": PANEL_PASSWORD 
+                    },
+                    body: JSON.stringify({ keyToDelete: key })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    loadKeys(); // Refresh list
+                } else {
+                    alert("Error revoking key: " + data.error);
+                }
+            } catch (err) {
+                alert("Server error. Could not revoke key.");
             }
         }
 
+        // Copy URL Function
         function copyUrl() {
             const copyText = document.getElementById("finalUrl");
             copyText.select();
-            navigator.clipboard.writeText(copyText.value);
-            alert("Copied!");
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                const btn = copyText.nextElementSibling;
+                const originalText = btn.innerText;
+                btn.innerText = "Copied! ✅";
+                btn.classList.add("bg-green-600", "text-white");
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.remove("bg-green-600", "text-white");
+                }, 2000);
+            });
         }
     </script>
 </body>
