@@ -1,12 +1,22 @@
 // api/proxy.js
+
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
 let redis, ratelimit;
 try {
   redis = Redis.fromEnv();
-  ratelimit = new Ratelimit({ redis: redis, limiter: Ratelimit.slidingWindow(10, "60 s"), analytics: true, prefix: "ratelimit:proxy" });
-} catch (e) { console.error(e); }
+  ratelimit = new Ratelimit({
+    redis: redis,
+    limiter: Ratelimit.slidingWindow(10, "60 s"), // 1 minute me max 10 requests
+    analytics: true,
+    prefix: "ratelimit:proxy",
+  });
+} catch (e) {
+  console.error("Redis Init Error:", e);
+}
+
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET || "MySuperSecretInternalLock";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -20,26 +30,42 @@ export default async function handler(req, res) {
   if (!number) return res.status(400).json({ success: false, error: "Vehicle number missing" });
 
   try {
+    // 1. Rate Limit Check
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "127.0.0.1";
     const { success: rlSuccess } = await ratelimit.limit(`proxy_${ip}`);
-    if (!rlSuccess) return res.status(429).json({ success: false, error: "TOO_MANY_REQUESTS" });
+    if (!rlSuccess) {
+      return res.status(429).json({ success: false, error: "TOO_MANY_REQUESTS", message: "Limit exceeded. Please wait a minute." });
+    }
 
+    // 2. Redis me Key Check
     const dataStr = await redis.get(key);
-    if (!dataStr) return res.status(403).json({ success: false, error: "KEY_INVALID" });
+    if (!dataStr) {
+      return res.status(403).json({ success: false, error: "KEY_INVALID", message: "Invalid or expired API key." });
+    }
 
     let parsedData = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
     const { url, exp } = parsedData;
     
+    // 3. Expiry Check
     if (!url) return res.status(500).json({ success: false, error: "NO_URL_FOUND" });
-    if (Date.now() > exp) return res.status(403).json({ success: false, error: "KEY_EXPIRED" });
+    if (Date.now() > exp) return res.status(403).json({ success: false, error: "KEY_EXPIRED", message: "This API key has expired." });
 
+    // 4. Target URL Construction
     let targetUrl = url.startsWith('http') ? url : `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}${url.startsWith('/') ? '' : '/'}${url}`;
     const finalFetchUrl = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}number=${number}`;
     
-    const response = await fetch(finalFetchUrl, { headers: { "Accept": "application/json" } });
+    // 5. Call Main API (with Internal Lock Header 🔥)
+    const response = await fetch(finalFetchUrl, { 
+        headers: { 
+            "Accept": "application/json",
+            "x-internal-secret": INTERNAL_SECRET // Lock ki chaabi bhej di
+        } 
+    });
     
     if (!response.ok) {
-        throw new Error(`Upstream API returned ${response.status}. Check if vehicle.js is working or original API is down.`);
+        if (response.status === 404) throw new Error(`API Not Found (404).`);
+        if (response.status === 403) throw new Error(`Access Denied. Proxy is not allowed to call the Main API.`);
+        throw new Error(`Upstream API returned error: ${response.status}`);
     }
 
     const data = await response.json();
