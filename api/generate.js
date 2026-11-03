@@ -5,7 +5,7 @@ import crypto from "crypto";
 let redis;
 try { redis = Redis.fromEnv(); } catch (e) { console.error("Redis Init Error:", e); }
 
-const PANEL_PASSWORD = "EliteAdmin@2026";
+const PANEL_PASSWORD = "EliteAdmin@2026"; // Aapka password
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -28,9 +28,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 🔥 FIX: URL ko properly parse karo, taaki query params hat sake
-    const parsedUrl = new URL(apiUrl);
-    const baseApiUrl = parsedUrl.origin + parsedUrl.pathname; // Sirf base URL, no query
+    // 🔥 FIX: Ab chahe full URL ho ya relative path, ye handle kar lega
+    let baseApiUrl = apiUrl;
+    if (apiUrl.startsWith('http')) {
+        const parsedUrl = new URL(apiUrl);
+        baseApiUrl = parsedUrl.origin + parsedUrl.pathname;
+    } else {
+        // Agar /api/vehicle hai, to bas query param hata do
+        baseApiUrl = apiUrl.split('?')[0];
+    }
 
     const shortKey = "veh_" + crypto.randomBytes(4).toString("hex");
     
@@ -48,6 +54,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, url: finalUrl, key: shortKey, expiry: expiryDate, note });
   } catch (err) {
     console.error("Generate Error:", err);
-    return res.status(500).json({ error: "Failed to generate URL. Check if API URL is valid." });
+    return res.status(500).json({ error: "Failed to generate URL." });
   }
 }
