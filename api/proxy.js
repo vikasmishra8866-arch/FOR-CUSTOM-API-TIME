@@ -35,9 +35,7 @@ export default async function handler(req, res) {
     if (!rlSuccess) {
       return res.status(429).json({ success: false, error: "TOO_MANY_REQUESTS", message: "Too many requests. Please wait a minute." });
     }
-  } catch (rlError) {
-    console.error("Rate Limit Error:", rlError);
-  }
+  } catch (rlError) { console.error("Rate Limit Error:", rlError); }
 
   // Redis se Key Check
   try {
@@ -59,15 +57,14 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, error: "KEY_EXPIRED", message: "This API key has expired." });
     }
 
-    // 🔥 FIX: Base URL sahi se banao
-    const protocol = req.headers["x-forwarded-proto"] || "https";
-    const host = req.headers.host;
-    
-    // Agar 'url' relative path hai (jaise /api/vehicle), to host add karo
+    // 🔥 FIX: Target URL ko smartly banao
     let targetUrl;
     if (url.startsWith('http')) {
-        targetUrl = url;
+        targetUrl = url; // Agar generate karte waqt full URL diya tha
     } else {
+        // Agar relative path hai (jaise /api/vehicle), to apna host use karo
+        const protocol = req.headers["x-forwarded-proto"] || "https";
+        const host = req.headers.host;
         targetUrl = `${protocol}://${host}${url}`;
     }
 
@@ -78,12 +75,12 @@ export default async function handler(req, res) {
 
     const response = await fetch(finalFetchUrl);
     
-    // 🔥 FIX: Agar 404 aaye to saaf message do, HTML parse mat karo
+    // 🔥 FIX: 404 aane par saaf message do
     if (!response.ok) {
         if (response.status === 404) {
-            throw new Error(`Upstream API not found at ${finalFetchUrl}. Check if the endpoint exists and deployment protection is off.`);
+            throw new Error(`404 Not Found: The API at "${finalFetchUrl}" does not exist. Please check the Base URL in the panel and ensure the vehicle API is deployed.`);
         }
-        throw new Error(`Upstream responded with status ${response.status}`);
+        throw new Error(`Upstream API error (Status: ${response.status})`);
     }
 
     const data = await response.json();
