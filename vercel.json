@@ -5,11 +5,5 @@
       "memory": 512
     }
   },
-  "regions": ["bom1"],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "regions": ["bom1"]
 }
