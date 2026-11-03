@@ -5,15 +5,8 @@ import { Ratelimit } from "@upstash/ratelimit";
 let redis, ratelimit;
 try {
   redis = Redis.fromEnv();
-  ratelimit = new Ratelimit({
-    redis: redis,
-    limiter: Ratelimit.slidingWindow(10, "60 s"),
-    analytics: true,
-    prefix: "ratelimit:proxy",
-  });
-} catch (initError) {
-  console.error("❌ REDIS INIT FAILED:", initError);
-}
+  ratelimit = new Ratelimit({ redis: redis, limiter: Ratelimit.slidingWindow(10, "60 s"), analytics: true, prefix: "ratelimit:proxy" });
+} catch (e) { console.error(e); }
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -27,48 +20,33 @@ export default async function handler(req, res) {
   if (!number) return res.status(400).json({ success: false, error: "Vehicle number missing" });
 
   try {
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "127.0.0.1";
+    const { success: rlSuccess } = await ratelimit.limit(`proxy_${ip}`);
+    if (!rlSuccess) return res.status(429).json({ success: false, error: "TOO_MANY_REQUESTS" });
+
     const dataStr = await redis.get(key);
     if (!dataStr) return res.status(403).json({ success: false, error: "KEY_INVALID" });
 
-    let parsedData = dataStr;
-    if (typeof dataStr === 'string') {
-        try { parsedData = JSON.parse(dataStr); } catch (e) { return res.status(500).json({ success: false, error: "DATA_CORRUPTED" }); }
-    }
-
+    let parsedData = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
     const { url, exp } = parsedData;
-    if (!url) return res.status(500).json({ success: false, error: "NO_URL_FOUND" });
-    if (Date.now() > exp) return res.status(403).json({ success: false, error: "KEY_EXPIRED", message: "This API key has expired." });
-
-    // 🔥 SMART URL RESOLVER
-    let targetUrl;
-    if (url.startsWith('http')) {
-        targetUrl = url; 
-    } else {
-        const protocol = req.headers["x-forwarded-proto"] || "https";
-        const host = req.headers.host;
-        // Agar URL '/api/vehicle' hai, to ye 'https://api-v2-nu.vercel.app/api/vehicle' bana dega
-        targetUrl = `${protocol}://${host}${url.startsWith('/') ? '' : '/'}${url}`;
-    }
-
-    const separator = targetUrl.includes('?') ? '&' : '?';
-    const finalFetchUrl = `${targetUrl}${separator}number=${number}`;
     
-    console.log("🔍 PROXY FETCHING URL:", finalFetchUrl);
+    if (!url) return res.status(500).json({ success: false, error: "NO_URL_FOUND" });
+    if (Date.now() > exp) return res.status(403).json({ success: false, error: "KEY_EXPIRED" });
 
-    const response = await fetch(finalFetchUrl);
+    let targetUrl = url.startsWith('http') ? url : `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}${url.startsWith('/') ? '' : '/'}${url}`;
+    const finalFetchUrl = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}number=${number}`;
+    
+    const response = await fetch(finalFetchUrl, { headers: { "Accept": "application/json" } });
     
     if (!response.ok) {
-        if (response.status === 404) {
-            throw new Error(`404 Error: The API at "${finalFetchUrl}" does not exist.`);
-        }
-        throw new Error(`Upstream API error (Status: ${response.status})`);
+        throw new Error(`Upstream API returned ${response.status}. Check if vehicle.js is working or original API is down.`);
     }
 
     const data = await response.json();
     return res.status(200).json(data);
 
   } catch (err) {
-    console.error("❌ PROXY FATAL ERROR:", err); 
-    return res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err.message });
+    console.error("PROXY ERROR:", err);
+    return res.status(502).json({ success: false, error: "INTERNAL_ERROR", message: err.message });
   }
 }
