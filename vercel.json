@@ -8,8 +8,8 @@
   "regions": ["bom1"],
   "rewrites": [
     {
-      "source": "/api/vehicle",
-      "destination": "/api/vehicle"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
